@@ -46,6 +46,15 @@ namespace qmc
     using am_uint32_t = std::atomic_uint32_t;
     using am_uint64_t = std::atomic_uint64_t;
 
+    using flag8_t = int8_t;
+    using flag16_t = int16_t;
+    using flag32_t = int32_t;
+
+    using byte_t = uint8_t;
+    using errno_t = flag32_t;
+
+    
+
     class PreCounter
     {
         public:
@@ -62,7 +71,16 @@ namespace qmc
 
     };
     
+    class GlobalInfo
+    {
+        public:
+            qmc::flag8_t  fmt;
+            qmc::uint16_t trk_n;
+            qmc::uint16_t ppq;
+    };
+    
 
+    
 
 } // namespace qmc
 
