@@ -12,6 +12,14 @@ namespace qmc
         smpte_time
     };
     
+    enum err
+    {
+        bad_path,
+        bad_arg,
+        permission_denied,
+        open_failed
+    };
+
     constexpr const size_t expected_header_size = 6;
 } // namespace qmc
 

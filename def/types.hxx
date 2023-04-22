@@ -28,10 +28,10 @@ namespace qmc
     using cstring_t = char*;
     using ccstring_t = const char*;
 
-    using am_int8_t = std::atomic_int8_t;
-    using am_int16_t = std::atomic_int16_t;
-    using am_int32_t = std::atomic_int32_t;
-    using am_int64_t = std::atomic_int64_t;
+    using aint8_t = std::atomic_int8_t;
+    using aint16_t = std::atomic_int16_t;
+    using aint32_t = std::atomic_int32_t;
+    using aint64_t = std::atomic_int64_t;
 
 #   if __cplusplus > 202300L
     using flt32_t = std::float32_t;
@@ -41,10 +41,10 @@ namespace qmc
     using flt64_t = std::double_t;
 #   endif
 
-    using am_uint8_t = std::atomic_uint8_t;
-    using am_uint16_t = std::atomic_uint16_t;
-    using am_uint32_t = std::atomic_uint32_t;
-    using am_uint64_t = std::atomic_uint64_t;
+    using auint8_t = std::atomic_uint8_t;
+    using auint16_t = std::atomic_uint16_t;
+    using auint32_t = std::atomic_uint32_t;
+    using auint64_t = std::atomic_uint64_t;
 
     using flag8_t = int8_t;
     using flag16_t = int16_t;
@@ -53,9 +53,9 @@ namespace qmc
     using byte_t = uint8_t;
     using errno_t = flag32_t;
 
-    
+    using fmode_t = flag8_t;    
 
-    class PreCounter
+    class CounterBase
     {
         public:
             qmc::uint64_t polyphony;
@@ -64,7 +64,7 @@ namespace qmc
             qmc::flt64_t  bpm;
     };
     
-    class Counter : public qmc::PreCounter
+    class Counter : public qmc::CounterBase
     {
         public:
             qmc::uint64_t nps;
