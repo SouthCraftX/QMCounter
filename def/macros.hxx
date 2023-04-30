@@ -14,6 +14,7 @@ namespace qmc
     
     enum err
     {
+        ok = 0,
         bad_path,
         bad_arg,
         permission_denied,
