@@ -1,9 +1,11 @@
-#include "modules\fstream.hxx"
+
 #include <iostream>
+#include "modules/fstream.hxx"
+
 int main()
 {
 
-    qmc::mod::InputFileStream stream;
+    qmc::mod::PosixInputFileStream stream;
     qmc::byte_t buf[64] = { 0 };
 
     std::cout << "Open:" << stream.open("t.txt") << '\n';

@@ -1,8 +1,20 @@
 #ifndef QMC_HF_MDE_FSTM
 #   define QMC_HF_MDE_FSTM
 
-#   include "def.hxx"
-#   include "unimethod.hxx"
+#   include "../def.hxx"
+#   include "../unimethod.hxx"
+
+#   if  defined(_WIN32)
+
+#       include <fileapi.h>
+
+#   elif defined(POSIX)
+
+#       include <fcntl.h>
+#       include <unistd.h>
+
+#   endif
+
 
 namespace qmc
 {
@@ -12,7 +24,6 @@ namespace qmc
         new_file,
         no_creating,
         exist_only
-
     } ;
 
     namespace mod
@@ -30,8 +41,6 @@ namespace qmc
         };
 
 #   if  defined(_WIN32)
-
-#       include <windows.h>
 
         class WinInputFileStream : public qmc::mod::FileStreamBase<::HANDLE>
         {
@@ -95,7 +104,7 @@ namespace qmc
                 qmc::int64_t read(qmc::byte_t* buf , qmc::int64_t count);
         };
 
-        using InputFileStream = PosixInputFileStream;
+        //using InputFileStream = PosixInputFileStream;
 
         qmc::errno_t PosixInputFileStream::open(qmc::ccstring_t path)
         {
@@ -132,12 +141,6 @@ namespace qmc
         }
 
 #   else
-
-
-
-
-    
-
 
 
 
