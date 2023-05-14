@@ -18,7 +18,8 @@ namespace qmc
         bad_path,
         bad_arg,
         permission_denied,
-        open_failed
+        open_failed,
+        get_free_mem
     };
 
     constexpr const size_t expected_header_size = 6;

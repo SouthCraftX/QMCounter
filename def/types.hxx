@@ -68,9 +68,10 @@ namespace qmc
     {
         public:
             qmc::uint64_t nps;
-
     };
     
+    
+
     class GlobalInfo
     {
         public:

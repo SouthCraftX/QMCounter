@@ -1,12 +1,14 @@
 #ifndef QMC_HF_MDE_FSTM
 #   define QMC_HF_MDE_FSTM
 
+#   include <climits>
+
 #   include "../def.hxx"
 #   include "../unimethod.hxx"
 
 #   if  defined(_WIN32)
 
-#       include <fileapi.h>
+#       include <windows.h>
 
 #   elif defined(POSIX)
 
@@ -18,13 +20,6 @@
 
 namespace qmc
 {
-
-    enum fmode
-    {
-        new_file,
-        no_creating,
-        exist_only
-    } ;
 
     namespace mod
     {
@@ -48,15 +43,17 @@ namespace qmc
                 qmc::errno_t open(qmc::ccstring_t path);
                 void close();
                 qmc::int64_t read(qmc::byte_t* buf , qmc::int64_t count);
+                qmc::uint32_t read(qmc::byte_t* buf , qmc::uint32_t count);
         };
 
-        using InputFileStream = qmc::mod::WinInputFileStream;
+        //using InputFileStream = qmc::mod::WinInputFileStream;
 
         qmc::errno_t WinInputFileStream::open(qmc::ccstring_t path)
         {
+            // ccstring --> wchar*
             wchar_t wc_path[MAX_PATH];
-            std::swprintf(wc_path , MAX_PATH , L"%s" , path);
-
+            std::mbstate_t state = std::mbstate_t();
+            std::mbsrtowcs(wc_path , &path , MAX_PATH , &state );
 
             this->hde = ::CreateFile(wc_path , GENERIC_READ , FILE_SHARE_READ , NULL ,
                                        OPEN_EXISTING , FILE_FLAG_SEQUENTIAL_SCAN , NULL);
@@ -82,12 +79,32 @@ namespace qmc
             ::CloseHandle(this->hde);
         }
 
+        qmc::uint32_t WinInputFileStream::read(qmc::byte_t* buf , qmc::uint32_t count)
+        {
+            qmc::uint32_t total_read;
+            if( ::ReadFile(this->hde , buf , count , &total_read , NULL) )
+            {
+                return total_read;
+            }
+            return 0;
+        }
+
         qmc::int64_t WinInputFileStream::read(qmc::byte_t* buf , qmc::int64_t count)
         {
-            qmc::int64_t total_read;
-            if( !::ReadFile(this->hde , buf , count , &total_read , NULL) ){
-                return 0;
+            qmc::int64_t total_read = 0;
+
+            //傻逼微软怎么一次才能读4GB
+            while (count > 0)
+            {
+                qmc::uint32_t now_read;
+
+                this->read(buf , ((count > 0xFFFFFFFFUL) ? 0xFFFFFFFFUL : count)(qmc::uint32_t));
+
+                total_read += now_read;
+                count -= 0xFFFFFFFFUL;
+                buf += 0xFFFFFFFF;                
             }
+            
             return total_read;
         }
     
@@ -126,7 +143,7 @@ namespace qmc
                         return qmc::err::open_failed;
                 }
             }
-            return err::ok;
+            return qmc::err::ok;
         }
 
         qmc::int64_t PosixInputFileStream::read(qmc::byte_t* buf , qmc::int64_t count)
