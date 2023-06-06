@@ -19,8 +19,13 @@ namespace qmc
         bad_arg,
         permission_denied,
         open_failed,
-        get_free_mem
+        get_free_mem,
+        get_file_size,
+        out_of_mem,
     };
+
+
+    constexpr const flt32_t realloc_ratio = 2;
 
     constexpr const size_t expected_header_size = 6;
 } // namespace qmc

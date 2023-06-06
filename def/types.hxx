@@ -41,16 +41,23 @@ namespace qmc
     using flt64_t = std::double_t;
 #   endif
 
-    using auint8_t = std::atomic_uint8_t;
+    using auint8_t  = std::atomic_uint8_t;
     using auint16_t = std::atomic_uint16_t;
     using auint32_t = std::atomic_uint32_t;
     using auint64_t = std::atomic_uint64_t;
 
-    using flag8_t = int8_t;
+    using flag8_t  = int8_t;
     using flag16_t = int16_t;
     using flag32_t = int32_t;
 
-    using byte_t = uint8_t;
+    using size_t    = uint32_t;
+#       if defined(__QMC_64BIT__)
+    using longsize_t= uint64_t;
+#       else
+    using longsize_t= size_t;
+#       endif
+
+    using byte_t  = uint8_t;
     using errno_t = flag32_t;
 
     using fmode_t = flag8_t;    
@@ -70,7 +77,9 @@ namespace qmc
             qmc::uint64_t nps;
     };
     
-    
+    using alloc_func_t = void*(*)(::size_t);
+    using m_relalloc_func_t = void*(*)(void*,::size_t); // old ptr , old size
+    using dealloc_func_t = void(*)(void*);
 
     class GlobalInfo
     {

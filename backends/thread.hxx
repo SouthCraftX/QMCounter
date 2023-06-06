@@ -1,8 +1,6 @@
 #ifndef QMC_H_MOD_THRD
 #   define QMC_H_MOD_THRD
 
-
-
 #   include "def.hxx"
 
 namespace qmc

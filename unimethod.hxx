@@ -7,11 +7,32 @@ namespace qmc
 {
 
     template<class FlagT>
-    constexpr bool has_flag(FlagT x , FlagT flag)
+    constexpr bool HasFlag(FlagT x , FlagT flag)
     {
         return x & flag;
     }
     
+    template<class DataT>
+    inline void Swap(DataT x , DataT y , DataT& tmp)
+    {
+        tmp = x;
+        x = y;
+        y = tmp;
+    }
+
+    template<class DataT>
+    inline void ReverseArray(DataT* arr , qmc::longsize_t end_index)
+    {
+        qmc::longsize_t low = 0;
+        DataT tmp;
+        do
+        {
+            Swap(arr[low] , arr[end_index] , tmp);
+            ++low;
+            --end_index;
+        } while (low != end_index);
+    }
+
     // Variable-length quantity --> Unsigned 32-bit interger
     qmc::uint32_t vlq_to_u32(qmc::byte_t* p_vlq)
     {
