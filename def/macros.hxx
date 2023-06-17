@@ -18,10 +18,11 @@ namespace qmc
         bad_path,
         bad_arg,
         permission_denied,
-        open_failed,
+        open_dile,
         get_free_mem,
         get_file_size,
         out_of_mem,
+        create_thrd,
     };
 
 

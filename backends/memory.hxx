@@ -12,7 +12,7 @@
 
 namespace qmc
 {
-    namespace mod
+    namespace backend
     {
 
         class AllocCount
@@ -125,7 +125,7 @@ namespace qmc
 #   endif
 
 
-    } // namespace mod
+    } // namespace backend
 
 } // namespace qmc
 

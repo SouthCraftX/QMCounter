@@ -17,11 +17,11 @@
 namespace qmc
 {
     
-    namespace mod
+    namespace backend
     {
         
 
-        };
+        
         
         class FileMapping
         {
@@ -32,10 +32,15 @@ namespace qmc
             public:
                 FileMapping(/* args */);
                 ~FileMapping();
-                qmc::errno_t open(qmc::ccstring_t path);
-                void close();
-                void* map();
+                qmc::errno_t Open(qmc::ccstring_t path);
+                void Close();
+                void* Map();
         };
+
+        void* FileMapping::Map()
+        {
+            return this->_mmap_begin_addr;
+        }
 
         FileMapping::FileMapping(/* args */)
         {
@@ -45,38 +50,14 @@ namespace qmc
         {
         }
         
-#       if defined(POSIX)    
+#   if defined(__QMC_WINDOWS__)
 
-        qmc::errno_t FileMapping::open(qmc::ccstring_t path)
-        {
-            if( (this->_file_mapping_hde._file_hde = ::open(path , O_RDONLY | O_LARGEFILE)) == -1 )
-            {
-                switch ( errno )
-                {
-                    case EACCES:
-                        return qmc::err::permission_denied;
-                
-                    case EISDIR:
-                    case EINVAL:
-                    case EFAULT:
-                    case ENOENT:
-                    case ENAMETOOLONG:
-                        return qmc::err::bad_path;
+#   elif defined(POSIX)
 
-                    default:
-                        return qmc::err::open_failed;
-                }
-            }
-            return qmc::err::ok;
-        }
+#   endif
 
-#       elif defined(__WINDOWS__)
 
-#       else
-
-#       endif
-
-    } // namespace mod
+    } // namespace backend
     
 
 } // namespace qmc

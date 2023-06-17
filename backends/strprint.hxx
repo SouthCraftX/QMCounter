@@ -83,7 +83,7 @@ namespace qmc
     }
 
     qmc::uint64_t StringPrint(qmc::cstring_t dst , qmc::ccstring_t src , const qmc::uint8_t& int_radix ,
-                           qmc::uint64_t buf_size , qmc::realloc_func_t reallocator ,
+                           qmc::uint64_t buf_size , qmc::m_realloc_func_t reallocator ,
                            void** argv , qmc::uint16_t argn) 
     {
         qmc::ccstring_t cur_src_pos = src;

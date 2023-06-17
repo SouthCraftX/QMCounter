@@ -77,6 +77,8 @@ namespace qmc
             qmc::uint64_t nps;
     };
     
+    using func_t = void*(*)(void*);
+
     using alloc_func_t = void*(*)(::size_t);
     using m_relalloc_func_t = void*(*)(void*,::size_t); // old ptr , old size
     using dealloc_func_t = void(*)(void*);

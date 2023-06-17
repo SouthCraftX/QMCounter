@@ -17,7 +17,7 @@
 namespace qmc
 {
     
-    namespace mod
+    namespace backend
     {
         
         template<class LockT , class CondT>
@@ -30,15 +30,15 @@ namespace qmc
             public:
                 CondLockBase();
                 ~CondLockBase();
-                lock();
-                unlock();
-                wake();     //Call unlock() first before calling wake().
-                sleep();
+                Lock();
+                Unlock();
+                Wake();     //Call Unlock() first before calling Wake().
+                Sleep();
         };
         
 #   if defined(_WIN32)
 
-        using WinCondLock = qmc::mod::CondLockBase<CRITICAL_SECTION , CONDITION_VARIABLE>;
+        using WinCondLock = qmc::backend::CondLockBase<CRITICAL_SECTION , CONDITION_VARIABLE>;
 
         WinCondLock::CondLockBase()
         {
@@ -46,22 +46,22 @@ namespace qmc
             InitializeConditionVariable(&this->_cond);
         }
 
-        WinCondLock::lock()
+        WinCondLock::Lock()
         {
             EnterCriticalSection(&this->_lock);
         }
 
-        WinCondLock::unlock()
+        WinCondLock::Unlock()
         {
-            LeaveCriticalSection(&this->lock);
+            LeaveCriticalSection(&this->Lock);
         }
 
-        WinCondLock::sleep()
+        WinCondLock::Sleep()
         {
             SleepConditionVariableCS(&this->_cond , &this->_lock , INFINITY);  
         }
 
-        WinCondLock::wake()
+        WinCondLock::Wake()
         {
             WakeConditionVariable(&this->_cond);
         }
@@ -69,7 +69,7 @@ namespace qmc
 #   elif defined(POSIX)
 
 
-        using PosixCondLock = qmc::mod::CondLockBase<pthread_mutex_t , pthread_cond_t>;
+        using PosixCondLock = qmc::backend::CondLockBase<pthread_mutex_t , pthread_cond_t>;
 
         PosixCondLock::PosixCondLock()
         {
@@ -83,22 +83,22 @@ namespace qmc
             pthread_cond_destory(&this->_cond);
         }
 
-        PosixCondLock::lock()
+        PosixCondLock::Lock()
         {
             pthread_mutex_lock(&this->_lock);
         }
 
-        PosixCondLOck::unlock()
+        PosixCondLOck::Unlock()
         {
             pthread_mutex_unlock(&this->_lock);
         }
 
-        PosixCondLock::sleep()
+        PosixCondLock::Sleep()
         {
             pthread_cond_wait(&this->_cond , &this->_lock);
         }
 
-        PosixCondLock::wake()
+        PosixCondLock::Wake()
         {
             pthread_cond_signal(&this->_cond);
         }
@@ -107,7 +107,7 @@ namespace qmc
 
 #   endif
 
-    } // namespace mod
+    } // namespace backend
     
 
 } // namespace qmc
