@@ -57,7 +57,7 @@ namespace qmc
         qmc::errno_t AllocCount::get_free_physical_mem(qmc::uint64_t& free_count)
         {
             MEMORYSTATUSEX mem_stat = { .dwLength = sizeof(MEMORYSTATUSEX) } ;
-            if(GlobalMemoryStatusEx(&mem_stat))
+            if(::GlobalMemoryStatusEx(&mem_stat))
             {
                 free_count = mem_stat.ullAvailPhys;
                 return qmc::err::ok;

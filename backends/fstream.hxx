@@ -23,44 +23,44 @@ namespace qmc
     namespace backend
     {
 
-        template<class FileHandleT>
-        class FileStreamBase
+        template<class file_handle_tpl>
+        class file_stream_base_t
         {
 
             protected:
-                FileHandleT _hde;
+                file_handle_tpl _hde;
                 qmc::uint64_t _file_size;
-                friend class InputFileStream;
+                friend class input_file_stream_t;
 #   if defined(QMC_HF_MOD_FMAP)             // File mapping support
-                friend class FileMapping;
+                friend class file_mapper_t;
 #   endif
 
             public:
-                virtual qmc::errno_t Open(qmc::ccstring_t path) = 0;
-                virtual void Close() = 0;
+                virtual qmc::errno_t open(qmc::ccstring_t path) = 0;
+                virtual void close() = 0;
                 qmc::uint64_t Size();
         };
 
-        template<class FileHandleT>
-        qmc::uint64_t FileStreamBase<FileHandleT>::Size()
+        template<class file_handle_tpl>
+        qmc::uint64_t file_stream_base_t<file_handle_tpl>::Size()
         {
             return this->_file_size;
         }
 
 #   if  defined(_WIN32)
 
-        class InputFileStream : public qmc::backend::FileStreamBase<::HANDLE>
+        class input_file_stream_t : public qmc::backend::file_stream_base_t<::HANDLE>
         {
             public:
-                qmc::errno_t Open(qmc::ccstring_t path);
-                void Close();
+                qmc::errno_t open(qmc::ccstring_t path);
+                void close();
                 qmc::longsize_t LongRead(qmc::byte_t* buf , qmc::longsize_t count);
-                qmc::size_t Read(qmc::byte_t* buf , qmc::size_t count);
+                qmc::size_t read(qmc::byte_t* buf , qmc::size_t count);
         };
 
-        using InputFileStream = qmc::backend::InputFileStream;
+        using input_file_stream_t = qmc::backend::input_file_stream_t;
 
-        qmc::errno_t InputFileStream::Open(qmc::ccstring_t path)
+        qmc::errno_t input_file_stream_t::open(qmc::ccstring_t path)
         {
             // ccstring --> wchar*
             wchar_t wc_path[MAX_PATH];
@@ -86,12 +86,12 @@ namespace qmc
             return 0;
         }
 
-        void InputFileStream::Close()
+        void input_file_stream_t::close()
         {
             ::CloseHandle(this->_hde);
         }
 
-        qmc::uint32_t InputFileStream::Read(qmc::byte_t* buf , qmc::size_t count)
+        qmc::uint32_t input_file_stream_t::read(qmc::byte_t* buf , qmc::size_t count)
         {
             qmc::uint32_t total_read;
             if( ::ReadFile(this->_hde , buf , count , &total_read , NULL) )
@@ -106,17 +106,17 @@ namespace qmc
 
 
 
-        class InputFileStream : public qmc::backend::FileStreamBase<int>
+        class input_file_stream_t : public qmc::backend::file_stream_base_t<int>
         {
             public:
-                qmc::errno_t Open(qmc::ccstring_t path );
-                void Close();
-                qmc::int64_t Read(qmc::byte_t* buf , qmc::int64_t count);
+                qmc::errno_t open(qmc::ccstring_t path );
+                void close();
+                qmc::int64_t read(qmc::byte_t* buf , qmc::int64_t count);
         };
 
-        using InputFileStream = InputFileStream;
+        using input_file_stream_t = input_file_stream_t;
 
-        qmc::errno_t InputFileStream::Open(qmc::ccstring_t path)
+        qmc::errno_t input_file_stream_t::open(qmc::ccstring_t path)
         {
 
             // Opening the file.
@@ -150,14 +150,14 @@ namespace qmc
             return qmc::err::ok;
         }
 
-        qmc::size_t InputFileStream::Read(qmc::byte_t* buf , qmc::size_t count)
+        qmc::size_t input_file_stream_t::read(qmc::byte_t* buf , qmc::size_t count)
         {
             qmc::int64_t ret = ::read(this->_hde , buf , count);
             return (ret == -1) ? ret : 0;
         }
 
 
-        void InputFileStream::Close()
+        void input_file_stream_t::close()
         {
             ::close(this->_hde);
         }
@@ -168,21 +168,21 @@ namespace qmc
 
 #   endif // if defined(...)
     
-    qmc::longsize_t InputFileStream::LongRead(qmc::byte_t* buf , qmc::longsize_t count)
+    qmc::longsize_t input_file_stream_t::LongRead(qmc::byte_t* buf , qmc::longsize_t count)
     {
 #   if  defined(__QMC_64BIT__)
         qmc::longsize_t n_read = 0;
         while (count > UINT32_MAX)
         {
-            n_read += this->Read(buf , UINT32_MAX);
+            n_read += this->read(buf , UINT32_MAX);
             buf += UINT32_MAX;
             count -= UINT32_MAX;
         }
-        n_read += this->Read(buf , count);
+        n_read += this->read(buf , count);
         return n_read; 
     }
 #   else
-        return this->Read(buf , count);
+        return this->read(buf , count);
 #   endif
     } // namespace qmc::backend
 
