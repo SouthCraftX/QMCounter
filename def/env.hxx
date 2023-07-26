@@ -15,7 +15,7 @@
 #           define __QMC_64BIT__
 #       endif
 #   elif defined(POSIX)
-#       if (defined(__x86_64__) || defined(__LP64__) || defined(__amd64))
+#       if (defined(__x86_64__) || defined(__LP64__) || defined(__amd64) || defined(__aarch64__))
 #           define __QMC_64BIT__
 #       endif
 #   endif //

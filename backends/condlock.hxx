@@ -1,16 +1,10 @@
 #ifndef QMC_H_MOD_CONDLOCK
 #   define QMC_H_MOD_CONDLOCK
 
-#   if defined(_WIN32) 
-
+#   if defined(__QMC_WINDOWS__) 
 #       include <synchapi.h>
-
-#   elif defined(POSIX)
-
-#       include <pthread.h>
-
 #   else
-
+#       include <pthread.h>
 #   endif // 
 
 
@@ -20,85 +14,89 @@ namespace qmc
     namespace backend
     {
         
-        template<class LockT , class CondT>
-        class CondLockBase
+        class cond_lock
         {
             protected:
-                LockT _lock;
-                CondT _cond;
-
+#   if defined(__QMC_WINDOWS__)
+                CRITICAL_SECTION _lock;
+                CONDITION_VARIABLE _cond;
+#   else
+                pthread_mutex_t _lock;
+                pthread_cond_t  _cond;
+#   endif // defined(__QMC_WINDOWS__)
             public:
-                CondLockBase();
-                ~CondLockBase();
-                Lock();
-                Unlock();
-                Wake();     //Call Unlock() first before calling Wake().
-                Sleep();
+                cond_lock();
+                ~cond_lock();
+                void acquire();
+                void release();
+                void wake();     //Call release() first before calling wake() to reduce the number of context switches.
+                void sleep();
         };
         
-#   if defined(_WIN32)
+#   if defined(__QMC_WINDOWS__)
 
-        using WinCondLock = qmc::backend::CondLockBase<CRITICAL_SECTION , CONDITION_VARIABLE>;
-
-        WinCondLock::CondLockBase()
+        cond_lock::cond_lock()
         {
-            InitializeCriticalSection(&this->_lock);
-            InitializeConditionVariable(&this->_cond);
+            ::InitializeCriticalSection(&this->_lock);
+            ::InitializeConditionVariable(&this->_cond);
         }
 
-        WinCondLock::Lock()
+        void cond_lock::acquire()
         {
-            EnterCriticalSection(&this->_lock);
+            ::EnterCriticalSection(&this->_lock);
         }
 
-        WinCondLock::Unlock()
+        void cond_lock::release()
         {
-            LeaveCriticalSection(&this->Lock);
+            ::LeaveCriticalSection(&this->Lock);
         }
 
-        WinCondLock::Sleep()
+        void cond_lock::sleep()
         {
-            SleepConditionVariableCS(&this->_cond , &this->_lock , INFINITY);  
+            ::SleepConditionVariableCS(&this->_cond , &this->_lock , INFINITY);  
         }
 
-        WinCondLock::Wake()
+        void cond_lock::wake()
         {
-            WakeConditionVariable(&this->_cond);
+            ::WakeConditionVariable(&this->_cond);
+        }
+
+        void cond_lock::~cond_lock()
+        {
+            // No functions is needed to destory locks
+            // There's nothing to do
         }
 
 #   elif defined(POSIX)
 
-
-        using PosixCondLock = qmc::backend::CondLockBase<pthread_mutex_t , pthread_cond_t>;
-
-        PosixCondLock::PosixCondLock()
+        cond_lock::cond_lock()
         {
             pthread_mutex_init(&this->_lock , nullptr);
             pthread_cond_init(&this->_cond , nullptr);
         }
 
-        ~PosixCondLock::PosixCondLock()
+        cond_lock::~cond_lock()
         {
             pthread_mutex_destory(&this->_lock);
             pthread_cond_destory(&this->_cond);
         }
 
-        PosixCondLock::Lock()
+        void cond_lock::acquire()
         {
             pthread_mutex_lock(&this->_lock);
         }
 
-        PosixCondLOck::Unlock()
+        void cond_lock::release()
         {
             pthread_mutex_unlock(&this->_lock);
         }
 
-        PosixCondLock::Sleep()
+        void cond_lock::sleep()
         {
             pthread_cond_wait(&this->_cond , &this->_lock);
         }
 
-        PosixCondLock::Wake()
+        void cond_lock::wake()
         {
             pthread_cond_signal(&this->_cond);
         }

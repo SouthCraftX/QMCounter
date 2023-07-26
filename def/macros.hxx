@@ -16,13 +16,15 @@ namespace qmc
     {
         ok = 0,
         bad_path,
+        bad_header_size,
         bad_arg,
         permission_denied,
-        open_dile,
+        open_file,
         get_free_mem,
         get_file_size,
         out_of_mem,
         create_thrd,
+        unknown
     };
 
 

@@ -19,9 +19,7 @@ namespace qmc
     
     namespace backend
     {
-        
-
-        
+    
         
         class file_mapper_t
         {
@@ -103,3 +101,4 @@ namespace qmc
 
 
 #endif // QMC_HF_MOD_FMAP
+

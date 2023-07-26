@@ -29,7 +29,7 @@ namespace qmc
         }
     }                     
 
-    qmc::size_t UnsignedToString(qmc::uint64_t x , qmc::cstring_t dst_str ,
+    qmc::size_t unsigned_to_string(qmc::uint64_t x , qmc::cstring_t dst_str ,
                                  qmc::uint8_t radix)
     {
         qmc::uint8_t i = 0;
@@ -44,15 +44,15 @@ namespace qmc
         return i++;
     }
 
-    qmc::size_t SignedToString(qmc::int64_t x , qmc::cstring_t dst_str,
+    qmc::size_t signed_to_string(qmc::int64_t x , qmc::cstring_t dst_str,
                                qmc::uint8_t radix)
     {
         if (x & INT64_MIN )  // Is it negative?
         {
             dst_str[0] = '-';
-            return UnsignedToString(-x , dst_str++ , radix)++;
+            return unsigned_to_string(-x , dst_str++ , radix)++;
         }
-        return UnsignedToString(x , dst_str , radix);
+        return unsigned_to_string(x , dst_str , radix);
     }
 
     
@@ -82,7 +82,7 @@ namespace qmc
         return                                  ret;        
     }
 
-    qmc::uint64_t StringPrint(qmc::cstring_t dst , qmc::ccstring_t src , const qmc::uint8_t& int_radix ,
+    qmc::uint64_t string_print(qmc::cstring_t dst , qmc::ccstring_t src , const qmc::uint8_t& int_radix ,
                            qmc::uint64_t buf_size , qmc::m_realloc_func_t reallocator ,
                            void** argv , qmc::uint16_t argn) 
     {
@@ -98,7 +98,7 @@ namespace qmc
                 switch (cur_ch)
                     {
                         case 'i':
-                            SignedToString( *(*qmc::uint64_t)*argv , );
+                            signed_to_string( *(*qmc::uint64_t)*argv , );
                             break;
                         
                         case 'u':

@@ -15,6 +15,8 @@
 namespace qmc
 {
 
+
+// Basic Types
     using int8_t = std::int8_t;
     using int16_t = std::int16_t;
     using int32_t = std::int32_t;
@@ -50,6 +52,13 @@ namespace qmc
     using flag16_t = int16_t;
     using flag32_t = int32_t;
 
+    using byte_t  = uint8_t;
+    using errno_t = flag32_t;
+
+    using fmode_t = flag8_t;    
+
+
+// Types of 'size'
     using size_t    = uint32_t;
 #       if defined(__QMC_64BIT__)
     using longsize_t= uint64_t;
@@ -57,39 +66,45 @@ namespace qmc
     using longsize_t= size_t;
 #       endif
 
-    using byte_t  = uint8_t;
-    using errno_t = flag32_t;
-
-    using fmode_t = flag8_t;    
-
-    class CounterBase
-    {
-        public:
-            qmc::uint64_t polyphony;
-            qmc::uint64_t notes;
-            qmc::uint64_t ticks;
-            qmc::flt64_t  bpm;
-    };
+// Type of 'tempo' (BPM)
+#       if defined(__QMC_64BIT__)
+    using event_len_t   = uint64_t; // unit:tick
+    using tempo_t       = flt64_t;
+    using tick_t        = uint64_t;
+    using notecount_t   = uint64_t;
+    using pps_t         = uint64_t;
+#       else
+    using event_len_t   = uint32_t;
+    using tempo_t       = flt32_t;
+    using tick_t        = uint32_t;
+    using notecount_t   = uint32_t;
+    using pps_t         = uint32_t; // Polyphony per sec
+#       endif
     
-    class Counter : public qmc::CounterBase
-    {
-        public:
-            qmc::uint64_t nps;
-    };
-    
+    using nps_t         = notecount_t;
+    using resolution_t  = uint16_t;
+
     using func_t = void*(*)(void*);
 
     using alloc_func_t = void*(*)(::size_t);
-    using m_relalloc_func_t = void*(*)(void*,::size_t); // old ptr , old size
+    using m_realloc_func_t = void*(*)(void*,::size_t); // old ptr , old size
     using dealloc_func_t = void(*)(void*);
 
-    class GlobalInfo
+    class global_meta_info
     {
         public:
-            qmc::flag8_t  fmt;
-            qmc::uint16_t trk_n;
-            qmc::uint16_t ppq;
+            flag8_t    _format;
+            uint16_t   _track_count;
+            uint16_t   _resolution;
+            ccstring_t _copyright;
     };
+    
+    class track_meta_info
+    {
+        public:
+            
+    };
+
     
 
     

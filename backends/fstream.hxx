@@ -3,7 +3,7 @@
 
 #   include <climits>
 
-#   include "def.hxx"
+#   include "../base.hxx"
 
 #   if  defined(__QMC_WINDOWS__)
 #       include <windows.h>
@@ -54,7 +54,7 @@ namespace qmc
             public:
                 qmc::errno_t open(qmc::ccstring_t path);
                 void close();
-                qmc::longsize_t LongRead(qmc::byte_t* buf , qmc::longsize_t count);
+                qmc::longsize_t long_read(qmc::byte_t* buf , qmc::longsize_t count);
                 qmc::size_t read(qmc::byte_t* buf , qmc::size_t count);
         };
 
@@ -106,7 +106,7 @@ namespace qmc
 
 
 
-        class input_file_stream_t : public qmc::backend::file_stream_base_t<int>
+        class input_file_stream : public qmc::backend::file_stream_base_t<int>
         {
             public:
                 qmc::errno_t open(qmc::ccstring_t path );
@@ -168,7 +168,7 @@ namespace qmc
 
 #   endif // if defined(...)
     
-    qmc::longsize_t input_file_stream_t::LongRead(qmc::byte_t* buf , qmc::longsize_t count)
+    qmc::longsize_t input_file_stream_t::long_read(qmc::byte_t* buf , qmc::longsize_t count)
     {
 #   if  defined(__QMC_64BIT__)
         qmc::longsize_t n_read = 0;
