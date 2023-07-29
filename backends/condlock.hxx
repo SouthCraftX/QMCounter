@@ -1,6 +1,8 @@
 #ifndef QMC_H_MOD_CONDLOCK
 #   define QMC_H_MOD_CONDLOCK
 
+#   include "../base.hxx"
+
 #   if defined(__QMC_WINDOWS__) 
 #       include <synchapi.h>
 #   else
@@ -18,11 +20,11 @@ namespace qmc
         {
             protected:
 #   if defined(__QMC_WINDOWS__)
-                CRITICAL_SECTION _lock;
-                CONDITION_VARIABLE _cond;
+                ::CRITICAL_SECTION _lock;
+                ::CONDITION_VARIABLE _cond;
 #   else
-                pthread_mutex_t _lock;
-                pthread_cond_t  _cond;
+                ::pthread_mutex_t _lock;
+                ::pthread_cond_t  _cond;
 #   endif // defined(__QMC_WINDOWS__)
             public:
                 cond_lock();
@@ -48,7 +50,7 @@ namespace qmc
 
         void cond_lock::release()
         {
-            ::LeaveCriticalSection(&this->Lock);
+            ::LeaveCriticalSection(&this->_lock);
         }
 
         void cond_lock::sleep()
@@ -61,7 +63,7 @@ namespace qmc
             ::WakeConditionVariable(&this->_cond);
         }
 
-        void cond_lock::~cond_lock()
+        cond_lock::~cond_lock()
         {
             // No functions is needed to destory locks
             // There's nothing to do

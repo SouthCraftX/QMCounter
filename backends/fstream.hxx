@@ -1,20 +1,19 @@
 #ifndef QMC_HF_MDE_FSTM
 #   define QMC_HF_MDE_FSTM
 
-#   include <climits>
-
 #   include "../base.hxx"
 
 #   if  defined(__QMC_WINDOWS__)
-#       include <windows.h>
-#   elif defined(POSIX)
+#       include <fileapi.h> // OpenFile , CloseHandle , ...
+#       include <errhandlingapi.h> // GetLastError
+#   else
 #       include <sys/stat.h>
 #       include <fcntl.h>
 #       include <unistd.h>
 #   endif
 
-#   include "def.hxx"
-#   include "unimethod.hxx"
+#   include "../base.hxx"
+#   include "../unimethod.hxx"
 #   include "filemapping.hxx"
 
 namespace qmc
@@ -22,45 +21,37 @@ namespace qmc
 
     namespace backend
     {
-
-        template<class file_handle_tpl>
-        class file_stream_base_t
+        class input_file_stream
         {
-
             protected:
-                file_handle_tpl _hde;
-                qmc::uint64_t _file_size;
-                friend class input_file_stream_t;
+#   if defined(__QMC_WINDOWS__)
+                ::HANDLE _hde;
+#   else
+                int _hde;
+#   endif // defined(__QMC_WINDOWS__)
+                qmc::longsize_t _file_size;
 #   if defined(QMC_HF_MOD_FMAP)             // File mapping support
-                friend class file_mapper_t;
-#   endif
-
+                friend class file_mapper;
+#   endif 
             public:
-                virtual qmc::errno_t open(qmc::ccstring_t path) = 0;
-                virtual void close() = 0;
-                qmc::uint64_t Size();
+                [[nodiscard]] qmc::errno_t open(qmc::ccstring_t path);
+                void close();
+                [[nodiscard]] qmc::longsize_t size();
+                [[nodiscard]] qmc::longsize_t long_read(qmc::byte_t* buf , qmc::longsize_t count);
+                [[nodiscard]] qmc::size_t read(qmc::byte_t* buf , qmc::size_t count);
         };
 
-        template<class file_handle_tpl>
-        qmc::uint64_t file_stream_base_t<file_handle_tpl>::Size()
+        [[nodiscard]]
+        qmc::longsize_t input_file_stream::size()
         {
             return this->_file_size;
         }
 
 #   if  defined(_WIN32)
 
-        class input_file_stream_t : public qmc::backend::file_stream_base_t<::HANDLE>
-        {
-            public:
-                qmc::errno_t open(qmc::ccstring_t path);
-                void close();
-                qmc::longsize_t long_read(qmc::byte_t* buf , qmc::longsize_t count);
-                qmc::size_t read(qmc::byte_t* buf , qmc::size_t count);
-        };
 
-        using input_file_stream_t = qmc::backend::input_file_stream_t;
-
-        qmc::errno_t input_file_stream_t::open(qmc::ccstring_t path)
+        [[nodiscard]]
+        qmc::errno_t input_file_stream::open(qmc::ccstring_t path)
         {
             // ccstring --> wchar*
             wchar_t wc_path[MAX_PATH];
@@ -74,24 +65,25 @@ namespace qmc
             {
                 switch (::GetLastError())
                 {
-                    case ERROR_FILE_NOT_FOUND:
-                    case ERROR_INVALID_DRIVE:
+                    [[likely]] case ERROR_FILE_NOT_FOUND: [[fallthrough]]
+                    case ERROR_INVALID_DRIVE:  [[fallthrough]]
                     case ERROR_PATH_NOT_FOUND:  return qmc::err::bad_path;
                     case ERROR_ACCESS_DENIED:   return qmc::err::permission_denied;
                 default:
-                    return qmc::err::open_failed;
+                    return qmc::err::open_file;
                 }
             }
 
             return 0;
         }
 
-        void input_file_stream_t::close()
+        void input_file_stream::close()
         {
             ::CloseHandle(this->_hde);
         }
 
-        qmc::uint32_t input_file_stream_t::read(qmc::byte_t* buf , qmc::size_t count)
+        [[nodiscard]]
+        qmc::uint32_t input_file_stream::read(qmc::byte_t* buf , qmc::size_t count)
         {
             qmc::uint32_t total_read;
             if( ::ReadFile(this->_hde , buf , count , &total_read , NULL) )
@@ -104,19 +96,8 @@ namespace qmc
     
 #   elif defined(POSIX)
 
-
-
-        class input_file_stream : public qmc::backend::file_stream_base_t<int>
-        {
-            public:
-                qmc::errno_t open(qmc::ccstring_t path );
-                void close();
-                qmc::int64_t read(qmc::byte_t* buf , qmc::int64_t count);
-        };
-
-        using input_file_stream_t = input_file_stream_t;
-
-        qmc::errno_t input_file_stream_t::open(qmc::ccstring_t path)
+        [[nodiscard]]
+        qmc::errno_t input_file_stream::open(qmc::ccstring_t path)
         {
 
             // Opening the file.
@@ -126,16 +107,15 @@ namespace qmc
                 {
                     case EACCES:
                         return qmc::err::permission_denied;
-                
-                    case EISDIR:
-                    case EINVAL:
-                    case EFAULT:
-                    case ENOENT:
+                    case EISDIR: [[fallthrough]]
+                    case EINVAL: [[fallthrough]]
+                    case EFAULT: [[fallthrough]]
+                   [[likely]] case ENOENT: [[fallthrough]]
                     case ENAMETOOLONG:
                         return qmc::err::bad_path;
 
                     default:
-                        return qmc::err::open_failed;
+                        return qmc::err::open_file;
                 }
             }
 
@@ -143,21 +123,22 @@ namespace qmc
             struct ::stat file_stat;
             if (::fstat(this->_hde , &file_stat))
             {
-                return qmc::err:get_file_size;
+                return qmc::err::get_file_size;
             }
             this->_file_size = file_stat.st_size;
 
             return qmc::err::ok;
         }
 
-        qmc::size_t input_file_stream_t::read(qmc::byte_t* buf , qmc::size_t count)
+        [[nodiscard]]
+        qmc::size_t input_file_stream::read(qmc::byte_t* buf , qmc::size_t count)
         {
             qmc::int64_t ret = ::read(this->_hde , buf , count);
             return (ret == -1) ? ret : 0;
         }
 
 
-        void input_file_stream_t::close()
+        void input_file_stream::close()
         {
             ::close(this->_hde);
         }
@@ -168,7 +149,7 @@ namespace qmc
 
 #   endif // if defined(...)
     
-    qmc::longsize_t input_file_stream_t::long_read(qmc::byte_t* buf , qmc::longsize_t count)
+    qmc::longsize_t input_file_stream::long_read(qmc::byte_t* buf , qmc::longsize_t count)
     {
 #   if  defined(__QMC_64BIT__)
         qmc::longsize_t n_read = 0;

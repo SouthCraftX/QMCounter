@@ -12,19 +12,19 @@ namespace qmc
     {
 
         [[noreturn]]
-        void nullptr_handler(qmc::uint32_t line , qmc::ccstring_t func_name ,
-                             qmc::ccstring_t source_name)
+        void nullptr_handler(qmc::uint32_t line , qmc::cstring_t func_name ,
+                             qmc::cstring_t source_name)
         {
-            fprintf(stderr , "FATAL ERROR:Nullptr Occurred in line %i, func %s , source %s , " \
+            fprintf(stderr , "FATAL ERROR:Nullptr Occurred in line %u, func %s , source %s , " \
                 "calling abort() ..." , line , func_name , source_name);
             abort();
         }
 
         [[noreturn]]
-        void asserted_false_handler(qmc::uint32_t line , qmc::ccstring_t func_name ,
-                                 qmc::ccstring_t source_name)
+        void asserted_false_handler(qmc::uint32_t line , qmc::cstring_t func_name ,
+                                 qmc::cstring_t source_name)
         {
-            fprintf(stderr , "FATAL ERROR:Asserted `0`(false) in line %i, func %s , source %s , " \
+            fprintf(stderr , "FATAL ERROR:Asserted `0`(false) in line %u, func %s , source %s , " \
                 "calling abort() ..." , line , func_name , source_name);
             abort();      
         }

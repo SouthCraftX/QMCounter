@@ -4,7 +4,7 @@
 // platform
 #   if defined(_MSDOS)
 #       error "libQMCounter does not support MS-DOS"
-#   elif (defined(_WIN16) || defined(_WIN32) || defined(_WIN64)) && !defined(__WINDOWS__)
+#   elif (defined(_WIN16) || defined(_WIN32) || defined(_WIN64)) && !defined(__QMC_WINDOWS__)
 #       define __QMC_WINDOWS__
 #   endif
 
@@ -27,7 +27,7 @@
 #       elif (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
 #           define _QMC_BIG_ENDIAN_
 #       endif //#ifdef __BYTE_ORDER__
-#   elif (defined(__linux__)  || defined(__OpenBSD__) || defined(__DragonFly__) )
+#   elif ( defined(__linux__)  || defined(__OpenBSD__) || defined(__DragonFly__) )
 #       include <endian.h>
 #       if (__BYTE_ORDER == __LITTLE_ENDIAN)
 #           define _QMC_LITTLE_ENDIAN_

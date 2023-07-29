@@ -73,22 +73,27 @@ namespace qmc
     using tick_t        = uint64_t;
     using notecount_t   = uint64_t;
     using pps_t         = uint64_t;
+    using global_event_count_t = uint64_t;
 #       else
     using event_len_t   = uint32_t;
     using tempo_t       = flt32_t;
     using tick_t        = uint32_t;
     using notecount_t   = uint32_t;
     using pps_t         = uint32_t; // Polyphony per sec
+    using global_event_count_t = uint64_t;
 #       endif
+
+    using event_count_t = global_event_count_t;
+    using track_event_count_t = uint32_t;
     
     using nps_t         = notecount_t;
     using resolution_t  = uint16_t;
 
     using func_t = void*(*)(void*);
 
-    using alloc_func_t = void*(*)(::size_t);
-    using m_realloc_func_t = void*(*)(void*,::size_t); // old ptr , old size
-    using dealloc_func_t = void(*)(void*);
+    using alloc_func_t = void*(*)(longsize_t);
+    using m_realloc_func_t = byte_t*(*)(byte_t* , longsize_t , longsize_t); // old ptr , old size , new_size
+    using dealloc_func_t = byte_t(*)(byte_t* , longsize_t);
 
     class global_meta_info
     {
@@ -99,13 +104,13 @@ namespace qmc
             ccstring_t _copyright;
     };
     
-    class track_meta_info
+    class tickframe_count
     {
         public:
-            
+            track_event_count_t _noteon;
+            track_event_count_t _noteoff;
+            tempo_t _tempo_change; // !0 if there is a tempo change event;
     };
-
-    
 
     
 
