@@ -35,6 +35,11 @@ namespace qmc
     using aint32_t = std::atomic_int32_t;
     using aint64_t = std::atomic_int64_t;
 
+    using auint8_t  = std::atomic_uint8_t;
+    using auint16_t = std::atomic_uint16_t;
+    using auint32_t = std::atomic_uint32_t;
+    using auint64_t = std::atomic_uint64_t;
+
 #   if __cplusplus > 202300L
     using flt32_t = std::float32_t;
     using flt64_t = std::float64_t;
@@ -43,14 +48,13 @@ namespace qmc
     using flt64_t = std::double_t;
 #   endif
 
-    using auint8_t  = std::atomic_uint8_t;
-    using auint16_t = std::atomic_uint16_t;
-    using auint32_t = std::atomic_uint32_t;
-    using auint64_t = std::atomic_uint64_t;
-
     using flag8_t  = int8_t;
     using flag16_t = int16_t;
     using flag32_t = int32_t;
+
+    using aflag8_t = aint8_t;
+    using aflag16_t = aint16_t;
+    using aflag32_t = aint32_t;
 
     using byte_t  = uint8_t;
     using errno_t = flag32_t;
@@ -88,6 +92,8 @@ namespace qmc
     
     using nps_t         = notecount_t;
     using resolution_t  = uint16_t;
+
+    using thrd_count_t = uint16_t;
 
     using func_t = void*(*)(void*);
 

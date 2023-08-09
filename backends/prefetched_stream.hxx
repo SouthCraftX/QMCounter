@@ -21,13 +21,14 @@ namespace qmc
             public:
                 using io_lock = backend::spinlock;
                 errno_t open(ccstring_t path , alloc_func_t allocator);
-                longsize_t read(byte_t** buf , longsize_t size);
-                void close();
+                _QMC_FORCEINLINE_ longsize_t read(byte_t** buf , longsize_t size);
+                _QMC_FORCEINLINE_ void close();
                 prefetched_stream();
                 prefetched_stream(ccstring_t path);
                 ~prefetched_stream();
 
         };
+        
         
         template<class backend_stream_tpl>
         prefetched_stream<backend_stream_tpl>::prefetched_stream()

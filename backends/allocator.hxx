@@ -1,155 +1,129 @@
-#ifndef QMC_H_GBPOOL
-#   define QMC_H_GBPOOL
+#ifndef QMC_H_ALLOC
+#   define QMC_H_ALLOC
+
+#   include "../base.hxx"
 
 #   if defined(__QMC_WINDOWS__)
 #       include <heapapi.h>
 #   else
 #       include <cstdlib>
 #       include <linux/vmalloc.h>
-
-#   endif
-
-#   include "../base.hxx"
+#   endif // defined(__QMC_WINDOWS__)
 
 namespace qmc
 {
-    namespace backends
+    namespace backend
     {
 
 #   if defined(POSIX)
 
-    class commit_limiter
-    {
-        private:
-            qmc::longsize_t _free_size;
-
-        public:
-            [[nodiscard]] bool allocatable(qmc::longsize_t desired_alloc_size);
-            qmc::longsize_t operator-=(qmc::longsize_t size);
-            qmc::longsize_t operator+=(qmc::longsize_t size);
-            void set_limit(qmc::longsize_t size);
-            commit_limiter() = default;
-            ~commit_limiter() = default;
-    };
-    
-    [[nodiscard]]
-    bool commit_limiter::allocatable(qmc::longsize_t desired_alloc_size)
-    {
-        return (this->_free_size > desired_alloc_size);
-    }
-
-    qmc::longsize_t commit_limiter::operator-=(qmc::longsize_t size)   
-    {
-        return (this->_free_size -= size);
-    }
-
-    qmc::longsize_t commit_limiter::operator+=(qmc::longsize_t size)   
-    {
-        return (this->_free_size += size);
-    }
-
-
-#   endif // defined(POSIX)
-
-        class allocator
+        class commit_limiter
         {
             private:
-#   if defined(__QMC_WINDOWS__) 
-                ::HANLDE _pool_hde;   
+                longsize_t _free_size;
+
+            public:
+                _QMC_FORCEINLINE_ [[nodiscard]] bool allocatable(longsize_t desired_alloc_size);
+                _QMC_FORCEINLINE_ longsize_t operator-=(longsize_t size);
+                _QMC_FORCEINLINE_ longsize_t operator+=(longsize_t size);
+                _QMC_FORCEINLINE_ void set_limit(longsize_t size);
+                commit_limiter() = default;
+                ~commit_limiter() = default;
+        };
+
+        _QMC_FORCEINLINE_
+        void commit_limiter::set_limit(longsize_t size)
+        {
+            this->_free_size = size;
+        }
+
+        [[nodiscard]]
+        bool commit_limiter::allocatable(longsize_t desired_alloc_size)
+        {
+            return (this->_free_size > desired_alloc_size);
+        }
+
+        longsize_t commit_limiter::operator-=(longsize_t size)
+        {
+            return (this->_free_size -= size);
+        }
+
+        longsize_t commit_limiter::operator+=(longsize_t size)
+        {
+            return (this->_free_size += size);
+        }
+
+        longsize_t commit_limiter::operator=(longsize_t size)
+        {
+            this->_free_size = size;
+        }
+
+#endif // defined(POSIX)
+
+        class track_allocator
+        {
+            private:
+#   if defined(__QMC_WINDOWS__)
+                ::HANLDE _pool_hde;
 #   else
-                commit_limiter _limiter;    
+                commit_limiter _limiter;
 #   endif // defined(__QMC_WINDOWS__)
 
             public:
-                void init(qmc::longsize_t max_size);
-
-                qmc::byte_t* alloc(qmc::longsize_t size);
-                qmc::byte_t* unexpandable_alloc(qmc::longsize_t size);
-
-                qmc::byte_t* realloc(qmc::byte_t* ptr , qmc::longsize_t old_size , qmc::longsize_t new_size);
-
-                void free(qmc::byte_t* ptr , qmc::longsize_t size);
-                void unexpandable_free(qmc::byte_t* ptr , qmc::longsize_t size);
-
-                void destory();
-                allocator(qmc::longsize_t init_size , qmc::longsize_t max_size);
-                allocator();
-                ~allocator();
+                _QMC_FORCEINLINE_ void init(longsize_t max_size);
+                _QMC_FORCEINLINE_ [[nodiscard]] byte_t* alloc(longsize_t size);
+                _QMC_FORCEINLINE_ [[nodiscard]] void free(byte_t* ptr , [[maybe_unused]] longsize_t size);
+                void destroy();
+                track_allocator(longsize_t init_size , longsize_t max_size);
+                track_allocator();
+                ~track_allocator();
         };
 
-#   if defined(__QMC_WINDOWS__)
-        void allocator::init(qmc::longsize_t max_size)
+#if defined(__QMC_WINDOWS__)
+
+        _QMC_FORCEINLINE_
+        void track_allocator::init(longsize_t max_size)
         {
             this->_pool_hde = ::HeapCreate(0 , 0 , max_size);
             __QMC_ASSERT__(this->_pool_hde);
         }
 
-        qmc::byte_t* allocator::alloc(qmc::longsize_t size)
+        _QMC_FORCEINLINE_ [[nodiscard]] 
+        byte_t* track_allocator::alloc(longsize_t size)
         {
-            return (qmc::byte_t*)::HeapAlloc(this->_pool_hde , 0 , size);
+            return (byte_t *)::HeapAlloc(this->_pool_hde , 0 , size);
         }
 
-        qmc::byte_t* allocator::unexpandable_alloc(qmc::longsize_t size)
+        _QMC_FORCEINLINE_ [[nodiscard]] 
+        void track_allocator::free(byte_t* ptr , [[maybe_unused]] longsize_t size)
         {
-            return (qmc::byte_t*)::HeapAlloc(this->_pool_hde , 0 , size);
-        }
-
-        qmc::byte_t* allocator::realloc(qmc::byte_t* ptr , qmc::longsize_t old_size , qmc::longsize_t new_size)
-        {
-            (void)old_size;
-            return (qmc::byte_t*)::HeapReAlloc(this->_pool_hde , 0 , ptr , new_size);
-        }    
-
-        void allocator::free(qmc::byte_t* ptr , qmc::longsize_t size)
-        {
-            (void)size;
-            ::BOOL ret = ::HeapFree(this->_pool_hde , ptr)
+            [[maybe_unused]] ::BOOL ret = ::HeapFree(this->_pool_hde , 0 , ptr);
             __QMC_ASSERT__(ret);
-            (void)ret;
         }
 
-        void allocator::unexpandable_free(qmc::byte_t* ptr , qmc::longsize_t size)
+        void track_allocator::destroy()
         {
-            (void)size;
-            ::BOOL ret = ::HeapFree(this->_pool_hde , ptr)
+            [[maybe_unused]] ::BOOL ret = ::HeapDestroy(this->_pool_hde);
             __QMC_ASSERT__(ret);
-            (void)ret;
         }
 
-        void allocator::destory()
+        using reallocatable_allocator = track_allocator;
+
+#else
+
+        _QMC_FORCEINLINE_
+        void track_allocator::init(longsize_t max_size)
         {
-            ::BOOL ret = ::HeapDestory(this->_pool_hde);
-            __QMC_ASSERT__(ret);
-            (void)ret;
-        }
-
-#   else
-
-        void allocator::init(qmc::longsize_t max_size)
-        {     
             this->_limiter.set_limit(max_size);
         }
 
-        qmc::byte_t* allocator::alloc(qmc::longsize_t size)
+        _QMC_FORCEINLINE_
+        byte_t* track_allocator::alloc(longsize_t size)
         {
-            if(this->_limiter.allocatable(size))
-            {   
-                qmc::byte_t* ret_ptr = (qmc::byte_t*)::malloc(size);
-                if(ret_ptr)
-                {
-                    this->_limiter -= size;
-                }
-                return ret_ptr;
-            }
-            return nullptr;
-        }  
-
-        qmc::byte_t* allocator::unexpandable_alloc(qmc::longsize_t size)
-        {
-            if(this->_limiter.allocatable(size))
+            if (this->_limiter.allocatable(size))
             {
-                qmc::byte_t* ret_ptr = (qmc::byte_t*)::__vmalloc(size , __GFP_HIGH | GFP_NOWAIT );
-                if(ret_ptr)
+                byte_t* ret_ptr = (byte_t*)::__vmalloc(size, __GFP_HIGH | GFP_NOWAIT);
+                if (ret_ptr)
                 {
                     this->_limiter -= size;
                 }
@@ -158,46 +132,120 @@ namespace qmc
             return nullptr;
         }
 
-        qmc::byte_t* allocator::realloc(qmc::byte_t* ptr , qmc::longsize_t old_size , qmc::longsize_t new_size)
+        _QMC_FORCEINLINE_
+        void track_allocator::free(byte_t* ptr , longsize_t size)
         {
-            qmc::longsize_t delta_size = new_size - old_size;
-            if(this->_limiter.allocatable(delta_size))
-            {
-                qmc::byte_t* ret_ptr = (qmc::byte_t*)::realloc(ptr , new_size);
-                if(ret_ptr)
-                {
-                    this->_limiter -= delta_size;
-                }
-                return ret_ptr; 
-            }
-            return nullptr;
+            ::vfree_atomic(ptr);
+            this->_limiter-=size;
         }
 
-        void allocator::unexpandable_free(qmc::byte_t* ptr , qmc::longsize_t size)
-        {   
-            ::free(ptr);
-            this->_limiter += size;
-        }
-
-        void allocator::unexpandable_free(qmc::byte_t* ptr , qmc::longsize_t size)
-        {
-            ::vfree(ptr);
-            this->_limiter += size;
-        }
-
-        void allocator::destory()
+        void track_allocator::destroy()
         {
             // There's nothing to do.
         }
-#   endif // defined(__QMC_WINDOWS__)
 
+        class reallocatable_allocator
+        {
+            private:
+                commit_limiter _limiter;
+                
+            public:
+                _QMC_FORCEINLINE_ void init(longsize_t max_size);
+                _QMC_FORCEINLINE_ void destory();
+                _QMC_FORCEINLINE_ [[nodiscard]] byte_t* alloc(longsize_t size);
+                _QMC_FORCEINLINE_ [[nodiscard]] 
+                byte_t* realloc(byte_t* old_ptr , longsize_t old_size , longsize_t new_size);
+                _QMC_FORCEINLINE_ void free(byte_t* ptr , longsize_t size);
+                reallocatable_allocator() = default;
+                ~reallocatable_allocator() = default;
+        };
         
-        
-        
+        _QMC_FORCEINLINE_
+        void reallocatable_allocator::init(longsize_t max_size)
+        {
+            this->_limiter.set_limit(max_size);
+        }
+
+        _QMC_FORCEINLINE_ [[nodiscard]]
+        byte_t* reallocatable_allocator::alloc(longsize_t size)
+        {
+            if(this->_limiter.allocatable(size))
+            {
+                byte_t* ret = (byte_t*)std::malloc(size);
+                if(ret)
+                {
+                    this->_limiter-=size;
+                }
+                return ret;
+            }
+            return nullptr;
+        }
+
+        _QMC_FORCEINLINE_ [[nodiscard]]
+        byte_t* reallocatable_allocator::realloc(
+            byte_t* old_ptr , longsize_t old_size , longsize_t new_size
+        ){
+            longsize_t delta_size = new_size - old_size;
+            if(this->_limiter.allocatable(delta_size))
+            {
+                byte_t* ret = (byte_t*)::realloc(old_ptr , new_size);
+                if(ret)
+                {
+                    this->_limiter -= delta_size;
+                }
+                return ret;
+            }
+            return nullptr;
+        }
+
+        _QMC_FORCEINLINE_ 
+        void reallocatable_allocator::free(byte_t* ptr , longsize_t size)
+        {
+            std::free(ptr);
+            this->_limiter -= size;
+        }
+
+        _QMC_FORCEINLINE_
+        void reallocatable_allocator::destory()
+        {
+            // There's nothing to do.
+        }
+    /*
+        byte_t *track_allocator::unexpandable_alloc(longsize_t size)
+        {
+            if (this->_limiter.allocatable(size))
+            {
+                byte_t *ret_ptr = (byte_t *)::__vmalloc(size, __GFP_HIGH | GFP_NOWAIT);
+                if (ret_ptr)
+                {
+                    this->_limiter -= size;
+                }
+                return ret_ptr;
+            }
+            return nullptr;
+        }
+
+        byte_t *track_allocator::realloc(byte_t *ptr, longsize_t old_size, longsize_t new_size)
+        {
+            longsize_t delta_size = new_size - old_size;
+            if (this->_limiter.allocatable(delta_size))
+            {
+                byte_t *ret_ptr = (byte_t *)::realloc(ptr, new_size);
+                if (ret_ptr)
+                {
+                    this->_limiter -= delta_size;
+                }
+                return ret_ptr;
+            }
+            return nullptr;
+        }
+    */
+
+
+#endif // defined(__QMC_WINDOWS__)
 
     } // namespace backends
-    
+
 } // namespace qmc
 
-
-#endif // QMC_H_GBPOOL
+#endif // QMC_H_ALLOC
