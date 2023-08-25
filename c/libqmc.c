@@ -119,7 +119,8 @@ void __qmc_report_bug(qmc_int32_t line , qmc_cstr_t func_name)
 }
 
 #          define __QMC_ASSERT__(e) (\
-    if(!(e)) __qmc_asserted_0_handler(__LINE__ , __func__) \
+    if(!(e)) \ 
+        __qmc_asserted_0_handler(__LINE__ , __func__) \
 )
 
 #          define __QMC_REPORT_BUG__() ( \
@@ -128,8 +129,15 @@ void __qmc_report_bug(qmc_int32_t line , qmc_cstr_t func_name)
 #       endif // defined(QMC_DEBUG)
 #   endif // !defined(__QMC_ASSERT__)
 
+#   define __QMC_IN_RANGE__(l,x,r) ((l <= x) && (x <= r))
 
-#   include <limits.h>
+#   if !defined(QMC_DISABLE_LIBC_TYPE_LIMITS)
+#       include <limits.h>
+#   endif // !defined(QMC_USER_TYPE_LIMITS)
+
+#   if !defined(QMC_DISABLE_LIBC_SJLJ)
+#       include <setjmp.h>
+#   endif // !defined(QMC_DISABLE_LIBC_SJLJ)
 
 // Define your own qmc_uint8_t to override them
 #   if !defined(qmc_uint8_t)
@@ -190,6 +198,17 @@ typedef     qmc_byte_t*(*qmc_dealloc_fn_t)(qmc_abstract_obj_t,qmc_byte_t*,qmc_lo
 
 #   endif // !defined(qmc_uint8_t) 
 
+#   if defined(__QMC_64BIT__)
+typedef     qmc_uint64_t    qmc_event_count_t;
+typedef     qmc_uint64_t    qmc_tick_t;
+#   else
+typedef     qmc_uint32_t    qmc_event_count_t;
+typedef     qmc_uint32_t    qmc_tick_t;
+#   endif // defined(__QMC_64BIT__)
+
+typedef     qmc_uint16_t    qmc_track_count_t;
+typedef     qmc_uint16_t    qmc_resolution_t;
+typedef     qmc_flag32_t    qmc_midi_format_t;
 
 // Error codes
 enum
@@ -232,6 +251,8 @@ enum
 
 #   define __QMC_LOCAL_TRACK_BUF_MAX__ 1048576 // 1MB
 #   define __QMC_RES_FIRST_ALLOC_COUNT__ 524288 // 512*sizeof(struct qmc_thrd_temp_result) KB
+#   define __QMC_TEXT_EVENT_SET_INIT_SIZE__  2048
+#   define __QMC_TEXT_event_ptr_count__ 64
 
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
 qmc_int32_t qmc_quick_log2(qmc_int32_t x)
@@ -475,7 +496,8 @@ qmc_errno_t __qmc_posix_open_file(struct qmc_ifile* p_ifile , qmc_cstr_t path)
 }
 
 __QMC_INTERNAL__
-qmc_longsize_t __qmc_posix_read_file(qmc_abstract_obj_t file_handle , qmc_byte_t** p_buf , qmc_longsize_t size)
+qmc_longsize_t __qmc_posix_read_file(qmc_abstract_obj_t file_handle , qmc_byte_t** p_buf , 
+                                     qmc_longsize_t size)
 {
     read((int)file_handle , *p_buf , size);
 }
@@ -882,12 +904,11 @@ qmc_byte_t* qmc_alloc_track(qmc_track_allocator* track_allocator , qmc_longsize_
 }
 
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
-void qmc_free_track(qmc_track_allocator* track_allocator , qmc_byte_t* ptr)
+void qmc_free_track(qmc_track_allocator* track_allocator , qmc_byte_t* ptr , qmc_size_t size)
 {
+    (void)size;
     HeapFree(track_allocator->heap , 0 , ptr);
 }
-
-#           define qmc_free_track(a,p,s) qmc_free_track(a,p)
 
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
 void qmc_track_allocator_destory(qmc_track_allocator* track_allocator)
@@ -917,27 +938,26 @@ qmc_byte_t* qmc_small_calloc(qmc_small_allocator* track_allocator , qmc_longsize
 
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
 qmc_byte_t* qmc_small_realloc(qmc_small_allocator* small_allocator , qmc_byte_t* old_ptr ,
-                              qmc_longsize_t new_size)
+                              qmc_longsize_t old_size , qmc_longsize_t new_size)
 {
+    (void)old_size;
     return (qmc_byte_t*)HeapReAlloc(small_allocator->heap , 0 , old_ptr ,  new_size);
 }
 
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
 qmc_byte_t* qmc_small_recalloc(qmc_small_allocator* small_allocator , qmc_byte_t* old_ptr ,
-                              qmc_longsize_t new_size)
+                               qmc_longsize_t old_size , qmc_longsize_t new_size)
 {
+    (void)old_size;
     return (qmc_byte_t*)HeapReAlloc(small_allocator->heap , HEAP_ZERO_MEMORY , old_ptr ,  new_size);
 }
 
-#           define qmc_small_realloc(a,p,o,n) qmc_small_realloc(a,p,n)
-#           define qmc_small_recalloc(a,p,o,n) qmc_small_recalloc(a,p,n)
-
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
-void qmc_small_free(qmc_small_allocator* small_allocator , qmc_byte_t* ptr)
+void qmc_small_free(qmc_small_allocator* small_allocator , qmc_byte_t* ptr , qmc_longsize_t size)
 {
+    (void)size;
     HeapFree(small_allocator->heap , 0 , ptr);
 }
-#           define qmc_small_free(a,p,s) qmc_small_free(a,p)
 
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
 void qmc_allocator_destory(struct qmc_base_allocator* allocator)
@@ -1074,8 +1094,8 @@ void qmc_small_free(qmc_small_allocator* small_allocator , qmc_byte_t* ptr , qmc
 #       error
 #   endif // !defined(QMC_DISABLE_SYSTEM_MEMORY_API)
 
-// ---- Constant String Allocator ----
-struct qmc_const_string_allocator
+// ---- Constant Object Allocator ----
+struct qmc_const_object_allocator
 {
     qmc_small_allocator* upstream_allocator;
     qmc_str_t* pool;
@@ -1085,65 +1105,65 @@ struct qmc_const_string_allocator
 };
 
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
-qmc_errno_t qmc_init_cstr_allocator(struct qmc_const_string_allocator* cstr_allocator ,
+qmc_errno_t qmc_init_cobj_allocator(struct qmc_const_object_allocator* cobj_allocator ,
                                     qmc_small_allocator* upstream_allocator , 
                                     qmc_longsize_t init_size)
 {
-    cstr_allocator->upstream_allocator = upstream_allocator;
-    return ( cstr_allocator->pool = qmc_small_alloc(upstream_allocator , init_size) ) ?
-           (cstr_allocator->free_size = init_size , QMC_OK) : 
+    cobj_allocator->upstream_allocator = upstream_allocator;
+    return ( cobj_allocator->pool = qmc_small_alloc(upstream_allocator , init_size) ) ?
+           (cobj_allocator->free_size = init_size , QMC_OK) : 
            QMC_OUT_OF_MEM;
 }
 
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
-qmc_str_t qmc_alloc_string(struct qmc_const_string_allocator* cstr_allocator , 
+qmc_str_t qmc_alloc_cobj(struct qmc_const_object_allocator* cobj_allocator , 
                            qmc_longsize_t size)
 {
 #   if defined(QMC_DEBUG)
-    if(cstr_allocator->pool)
+    if(cobj_allocator->pool)
     {
-        return qmc_alloc_string_nocheck(cstr_allocator , size);
+        return qmc_alloc_cobj_nocheck(cobj_allocator , size);
     }
     __QMC_REPORT_BUG__();
 #   else
-    return qmc_alloc_string_nocheck(cstr_allocator , size);
+    return qmc_alloc_cobj_nocheck(cobj_allocator , size);
 #   endif
 }
 
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
-qmc_str_t qmc_alloc_string_nocheck(struct qmc_const_string_allocator* cstr_allocator , 
+qmc_str_t qmc_alloc_cobj_nocheck(struct qmc_const_object_allocator* cobj_allocator , 
                                    qmc_longsize_t size)
 {
-    if(cstr_allocator->free_size < size)
+    if(cobj_allocator->free_size < size)
     {
-        qmc_longsize_t new_size = cstr_allocator->acquired_size * 1.2;
-        qmc_str_t new_ptr = qmc_small_realloc(cstr_allocator->upstream_allocator , 
-                                              cstr_allocator->pool , 
-                                              cstr_allocator->acquired_size , 
+        qmc_longsize_t new_size = cobj_allocator->acquired_size * 1.2;
+        qmc_str_t new_ptr = qmc_small_realloc(cobj_allocator->upstream_allocator , 
+                                              cobj_allocator->pool , 
+                                              cobj_allocator->acquired_size , 
                                               new_size);        
         if(new_ptr)
         {
-            cstr_allocator->acquired_size = new_size;
-            cstr_allocator->pool = new_size;
+            cobj_allocator->acquired_size = new_size;
+            cobj_allocator->pool = new_size;
         }
         else
         {
             return NULL;
         }
     }
-    qmc_str_t* ret_ptr = cstr_allocator->free_point;
-    cstr_allocator->free_point += size;
-    cstr_allocator->free_size -= size;
+    qmc_str_t* ret_ptr = cobj_allocator->free_point;
+    cobj_allocator->free_point += size;
+    cobj_allocator->free_size -= size;
     return ret_ptr;
 }
 
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
-void qmc_destory_cstr_allocator(struct qmc_const_string_allocator* cstr_allocator)
+void qmc_destory_cobj_allocator(struct qmc_const_object_allocator* cobj_allocator)
 {
-    qmc_small_free(cstr_allocator->upstream_allocator , 
-                   cstr_allocator->pool , 
-                   cstr_allocator->free_size + cstr_allocator->acquired_size);
-    cstr_allocator->pool = NULL;
+    qmc_small_free(cobj_allocator->upstream_allocator , 
+                   cobj_allocator->pool , 
+                   cobj_allocator->free_size + cobj_allocator->acquired_size);
+    cobj_allocator->pool = NULL;
 }
 
 // ---- Lock ----
@@ -1345,32 +1365,236 @@ void qmc_spin_lock_release(struct qmc_spinlock* p_lock)
 
 struct qmc_midi_global_meta
 {
-    qmc_flag16_t format;
-    qmc_uint16_t track_count;
-    qmc_uint16_t resolution;
+    qmc_midi_format_t format;
+    qmc_track_count_t track_count;
+    qmc_resolution_t resolution;
 };
 
 struct qmc_text_event
 {
-    qmc_uint64_t tick;
-    qmc_str_t text;
+    qmc_tick_t tick;
+    qmc_str_t text[0];
 };
+
+struct qmc_scan_track_context
+{
+    qmc_size_t track_size;
+    qmc_byte_t* track_buf;
+    jmp_buf rollback_point;
+};
+
+struct qmc_text_event_set
+{
+    qmc_event_count_t count;
+    qmc_longsize_t free_count;
+    qmc_longsize_t free_size;
+    qmc_longsize_t acquired_size;
+    struct qmc_text_event** array;
+    struct qmc_text_event* event_pool;
+    struct qmc_text_event* free_point;
+};
+
+__QMC_FORCEINLINE__ __QMC_INTERNAL__
+qmc_longsize_t qmc_sizeof_text_event(qmc_longsize_t text_len)
+{
+    return sizeof(qmc_tick_t) + text_len + 1;
+}
+
+__QMC_INTERNAL__
+qmc_errno_t qmc_init_text_event_set(struct qmc_text_event_set* text_event_set, qmc_small_allocator* small_allocator)
+{
+    text_event_set->event_pool = qmc_small_alloc(small_allocator , __QMC_TEXT_EVENT_SET_INIT_SIZE__);
+    text_event_set->array = qmc_small_alloc(small_allocator , __QMC_TEXT_event_ptr_count__);
+    if(text_event_set->event_pool && text_event_set->array)
+    {
+        text_event_set->free_size = __QMC_TEXT_EVENT_SET_INIT_SIZE__;
+        text_event_set->acquired_size = __QMC_TEXT_EVENT_SET_INIT_SIZE__;
+        text_event_set->count = 0;
+        return QMC_OK;
+    }
+    return QMC_OUT_OF_MEM;
+}
+
+__QMC_FORCEINLINE__ __QMC_INTERNAL__
+qmc_longsize_t qmc_text_event_auto_realloc(struct qmc_text_event_set* text_event_set , 
+                                qmc_longsize_t str_len , struct qmc_scan_track_context* scan_ctx ,
+                                qmc_small_allocator* small_allocator  )
+{
+    qmc_longsize_t event_len = qmc_sizeof_text_event(str_len);
+    if(event_len > text_event_set->free_size)
+    {
+        qmc_longsize_t new_size = (text_event_set->acquired_size + event_len) * 1.25;
+        struct qmc_text_event* new_pool =  qmc_small_realloc(   
+            small_allocator , text_event_set->event_pool ,      
+            text_event_set->acquired_size , new_size            
+        );
+        if(new_pool)
+        {
+            text_event_set->free_size += new_size - text_event_set->acquired_size;
+            text_event_set->acquired_size = new_size;
+            text_event_set->free_point = text_event_set->event_pool + 
+                (text_event_set->acquired_size - text_event_set->free_size);
+        }
+        longjmp(scan_ctx->rollback_point , QMC_OUT_OF_MEM);
+    }
+
+    if(!text_event_set->free_count)
+    {
+        qmc_longsize_t new_size = text_event_set->count << 1;
+        struct qmc_text_event** new_array = qmc_small_realloc(   
+            small_allocator , text_event_set->array ,      
+            text_event_set->acquired_size , new_size            
+        );
+        if(new_array)
+        {
+            text_event_set->array = new_array;
+            text_event_set->free_count = text_event_set->count;
+        }
+        longjmp(scan_ctx->rollback_point , QMC_OUT_OF_MEM);
+    }
+
+    return event_len;
+}
+
+// Roll back if it's out of memory
+__QMC_FORCEINLINE__ __QMC_INTERNAL__
+void qmc_text_event_set_add(struct qmc_text_event_set* text_event_set , 
+                            qmc_byte_t* str_begin , qmc_longsize_t str_len , 
+                            qmc_tick_t tick , 
+                            qmc_small_allocator* small_allocator , 
+                            struct qmc_scan_track_context* scan_ctx)
+{ 
+    qmc_longsize_t event_len = qmc_text_event_auto_realloc(
+        text_event_set , str_len , scan_ctx , small_allocator
+    );
+    *(qmc_tick_t*)text_event_set->free_point = tick;
+    memcpy((qmc_tick_t*)text_event_set->free_point + 1 , str_begin , str_len);
+    text_event_set->free_point += event_len;
+    *((qmc_byte_t*)text_event_set->free_point - 1) = 0;
+    text_event_set->free_count--;
+}
+
+__QMC_FORCEINLINE__ __QMC_INTERNAL__
+qmc_longsize_t qmc_text_event_set_calc_merge_size(
+    struct qmc_text_event_set** src_array , qmc_longsize_t src_count , 
+    qmc_longsize_t* p_event_ptr_count
+)
+{
+    qmc_longsize_t event_ptr_count = 0 , total_pool_size = 0;
+    for(struct qmc_text_event_set** p = src_array ; p != src_array + src_count ; ++p)
+    {
+        event_ptr_count += (*p)->count;
+        total_pool_size += (*p)->acquired_size - (*p)->free_size;
+    }
+    *p_event_ptr_count = event_ptr_count;
+    return total_pool_size;
+}
+
+__QMC_INTERNAL__
+void qmc_text_event_set_change_array_offset(
+    struct qmc_text_event** begin , struct qmc_text_event** end ,
+    ptrdiff_t offset
+){
+    for(struct qmc_text_event** p = begin ; p != end ; ++p)
+    {
+        *p += offset;
+    }
+}
+
+__QMC_INTERNAL__
+void qmc_text_event_set_perform_copy(
+    struct qmc_text_event_set* dst , struct qmc_text_event_set* src_array ,
+    qmc_longsize_t src_count 
+){
+    struct qmc_text_event* cur_dst_pool = dst->event_pool;
+    qmc_longsize_t cur_pool_size , cur_array_size;
+    struct qmc_text_event** cur_dst_array = dst->array;
+    ptrdiff_t pool_offset;
+
+    for (struct qmc_text_event_set* p = src_array ; p < src_array + src_count; p++)
+    {
+        pool_offset = dst->event_pool - p->event_pool;
+        cur_pool_size =  p->acquired_size - p->free_size;
+        cur_array_size = p->count * sizeof(struct qmc_text_event_set**);
+        memcpy(cur_dst_pool , p->event_pool , cur_pool_size); // Copy Pool
+        memcpy(cur_dst_array , p->array , cur_array_size);
+        qmc_text_event_set_change_array_offset(
+            cur_dst_array , cur_dst_array + cur_array_size , pool_offset
+        ); 
+        cur_dst_pool += cur_pool_size;
+    }
+    
+}
+
+
+
+__QMC_INTERNAL__
+qmc_errno_t qmc_text_event_set_merge(
+    struct qmc_text_event_set* dst , struct qmc_text_event_set* src_array , 
+    qmc_longsize_t src_count , qmc_small_allocator* small_allocator
+){
+    qmc_longsize_t event_ptr_count;
+    qmc_longsize_t pool_size = qmc_text_event_set_calc_merge_size(
+        src_array , src_count , &event_ptr_count
+    );
+    struct qmc_text_event_set temp_set = {
+        .event_pool = qmc_small_alloc(small_allocator , pool_size) ,
+        .array = qmc_small_alloc(small_allocator , sizeof(struct qmc_text_event_set*) * event_ptr_count) ,
+        .free_size = 0 , 
+        .free_count = 0,
+        .acquired_size = pool_size ,
+        .count = event_ptr_count
+    };
+    if(temp_set.event_pool && temp_set.array)
+    {
+        qmc_text_event_set_perform_copy(dst , src_array , src_count);
+        /* Sort */
+        *dst = temp_set;
+    }
+    if(temp_set.event_pool)
+        qmc_small_free(small_allocator , temp_set.event_pool , pool_size);
+    
+    return QMC_OUT_OF_MEM;
+}
+
+
+__QMC_INTERNAL__
+void qmc_text_event_set_destory(struct qmc_text_event_set* text_event_set , 
+                                qmc_small_allocator* small_allocator)
+{
+    qmc_small_free(small_allocator , text_event_set->array , 
+                   text_event_set->count + text_event_set->free_count);
+    qmc_small_free(small_allocator , text_event_set->event_pool , 
+                   text_event_set->acquired_size);
+}
 
 typedef struct qmc_text_event qmc_text_event_t;         // FF 01 len text
 typedef struct qmc_text_event qmc_copyright_event_t;    // FF 02 len text
 typedef struct qmc_text_event qmc_track_name_event_t;   // FF 03 len text
+
 typedef struct qmc_text_event qmc_lyrics_event_t;       // FF 05 len text
 typedef struct qmc_text_event qmc_marker_event_t;       // FF 06 len text
 typedef struct qmc_text_event qmc_cue_point_event_t;    // FF 07 len text
 
-struct qmc_midi_meta
+union qmc_midi_meta
 {
-    // All event end with NULL
-    qmc_text_event_t*       text;      
-    qmc_copyright_event_t*  copyright; 
-    qmc_lyrics_event_t*     lyrics;    
-    qmc_marker_event_t*     marker;    
-    qmc_cue_point_event_t*  cue_point; 
+    
+    struct 
+    {
+        // All event end with NULL
+        struct qmc_text_event_set   text;      
+        struct qmc_text_event_set   copyright; 
+        struct qmc_text_event_set   track_name;
+        struct qmc_text_event_set   __reserved; // Reserve for Instrument Name
+        struct qmc_text_event_set   lyrics;    
+        struct qmc_text_event_set   marker;    
+        struct qmc_text_event_set   cue_point;
+
+    } in_name;
+    struct 
+    {
+        struct qmc_text_event* event_set[7];
+    } in_array;
 };
 
 struct qmc_working_stat
@@ -1381,11 +1605,13 @@ struct qmc_working_stat
 
 struct qmc_midi_stream
 {
+    qmc_auint16_t loaded_track;
     qmc_auint16_t remain_track;   
     qmc_track_allocator track_allocator;
     struct qmc_ifile* file;
     qmc_abstract_obj_t io_lock;
-    qmc_errno_t(*fn_load_track)(struct qmc_midi_stream* , qmc_byte_t** , qmc_size_t*);
+    qmc_errno_t(*fn_load_track)(struct qmc_midi_stream* , qmc_byte_t** , 
+                                qmc_size_t* , qmc_uint16_t);
 };
 
 struct qmc_tickframe_result
@@ -1479,12 +1705,12 @@ bool qmc_test_end_of_track_event(qmc_uint32_t track_last_4_bytes)
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
 bool qmc_test_track_header(struct qmc_midi_stream* midi_stream , qmc_uint32_t* header_buf)
 {
-    return ((qmc_fread(midi_stream->file , &header_buf , 8) < 8) || *header_buf != 'Mtrk' ) ? 1 : 0;
+    return !((qmc_fread(midi_stream->file , &header_buf , 8) == 8) && *header_buf == 'Mtrk' );
 }
 
 __QMC_INTERNAL__
-qmc_errno_t qmc_load_track(struct qmc_midi_stream* midi_stream ,
-                           qmc_byte_t** p_buf , qmc_size_t* p_track_size)
+qmc_errno_t qmc_load_track(struct qmc_midi_stream* midi_stream , qmc_byte_t** p_buf ,
+                          qmc_size_t* p_track_size , qmc_uint16_t* p_track_id)
 {
     // track_header[0] : MTrk Flag
     // track_header[1] : Track Size
@@ -1519,6 +1745,8 @@ qmc_errno_t qmc_load_track(struct qmc_midi_stream* midi_stream ,
         {
             *p_track_size = track_header[1];
             midi_stream->remain_track--;
+            *p_track_id = midi_stream->loaded_track;
+            midi_stream->loaded_track++;
             ret = QMC_OK;
             goto JMPFLAG_UNLOCK_AND_RETURN;
         }
@@ -1535,8 +1763,8 @@ JMPFLAG_UNLOCK_AND_RETURN:
     return QMC_COMPLETED;
 }
 
-qmc_errno_t qmc_load_track_with_pfs(struct qmc_midi_stream* midi_stream ,
-                                    qmc_byte_t** p_buf , qmc_size_t* p_track_size)
+qmc_errno_t qmc_load_track_with_pfs(struct qmc_midi_stream* midi_stream , qmc_byte_t** p_buf , 
+                                    qmc_size_t* p_track_size , qmc_uint16_t* p_track_id)
 {
     // track_header[0] : MTrk Flag
     // track_header[1] : Track Size
@@ -1561,6 +1789,8 @@ qmc_errno_t qmc_load_track_with_pfs(struct qmc_midi_stream* midi_stream ,
         {
             *p_track_size = track_header[1];
             midi_stream->remain_track--;
+            *p_track_id = midi_stream->loaded_track;
+            midi_stream->loaded_track++;
             ret = QMC_OK;
             goto JMPFLAG_UNLOCK_AND_RETURN;
         }
@@ -1575,16 +1805,15 @@ JMPFLAG_UNLOCK_AND_RETURN:
     return QMC_COMPLETED;
 }
 
-qmc_uint32_t vlq_to_u32_move(qmc_byte_t** x)
+qmc_uint32_t vlq_to_u32_move(qmc_byte_t** p)
 {
-    qmc_uint32_t result = 0;
-    qmc_byte_t b;
-    do
-    {
-        b = *(*x++);
-        result = (result << 7) | (b & 0x7F);
-    } while ((b & 0b10000000) != 0);
-    return result;
+    qmc_uint32_t i = **p & 0x7Fu;
+	while (*(*p)++ & 0x80u)
+	{
+		(i <<= 7);
+        i |= **p & 0x7Fu;
+	}
+	return i;
 }
 
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
@@ -1631,29 +1860,77 @@ void qmc_handle_out_of_mem_before_scan(struct qmc_working_stat* working_stat ,
 }
 
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
-bool qmc_analyse_meta_event(qmc_byte_t* event)
+void qmc_analyse_sysex_event()
 {
 
 }
 
-// @event : The begin byte of the event
+// @qmc_analyse_FN_event , @qmc_analyse_meta_event , @qmc_analyse_event :
+// Arg @event : The begin byte of the event
 // Return true if it is a EOT event
+
 __QMC_FORCEINLINE__ __QMC_INTERNAL__
-bool qmc_analyse_event(qmc_byte_t* event , struct qmc_tickframe_result* basic_res)
+bool qmc_analyse_meta_event(qmc_byte_t** p_event , struct qmc_tickframe_result* basic_res ,
+                            union qmc_midi_meta* meta , qmc_track_count_t cur_track_id ,
+                            struct qmc_const_object_allocator* cobj_allocator)
 {
-    switch (*event >> 4)
+    p_event++;
+    if(__QMC_IN_RANGE__(1 , *p_event , 2) || __QMC_IN_RANGE__(5 , *p_event , 7))
+    {
+        qmc_uint8_t index = *(++p_event) - 1;
+        ((meta->in_array.event[index]) + (meta->in_array.end_index[index])) = 
+
+    }
+    else if (*(qmc_uint16_t*)p_event == 0x5103) // Tempo Change
+    {
+        /* code */
+    }
+    
+
+}
+
+__QMC_FORCEINLINE__ __QMC_INTERNAL__
+bool qmc_analyse_FN_event(qmc_byte_t** p_event , struct qmc_tickframe_result* basic_res ,
+                          union qmc_midi_meta* meta , qmc_uint16_t cur_track ,
+                          struct qmc_const_object_allocator* cobj_allocator)
+{
+    switch (**p_event)
+    {
+        case 0xFF:
+            qmc_analyse_meta_event(p_event , basic_res , meta , cobj_allocator , cur_track);
+            break;
+        
+        case 0xF0:
+            qmc_analyse_sysex_event();
+            break;
+
+        default:
+            __QMC_REPORT_BUG__();
+    }
+}
+
+
+__QMC_FORCEINLINE__ __QMC_INTERNAL__
+bool qmc_analyse_event(qmc_byte_t** p_event , struct qmc_tickframe_result* basic_res ,
+                       union qmc_midi_meta* meta , qmc_uint16_t cur_track ,
+                       struct qmc_const_object_allocator* cobj_allocator)
+{
+    switch (**p_event >> 4)
     {
         case 0x09: // noteon
-            basic_res->noteon_n++;
+            *p_event += 2;
+            if(**p_event) basic_res->noteon_n++;
+            else // Regard noteon(vel=0) as noteoff
+                basic_res->noteoff_n++;
             break;
         
         case 0x08: // noteoff
             basic_res->noteoff_n++;
+            *p_event += 4;
             break;
 
         case 0x0F:  // meta-event
-            
-            break;
+            return qmc_analyse_FN_event(p_event , basic_res , meta , cobj_allocator , cur_track);
 
         default:
             break;
@@ -1661,16 +1938,69 @@ bool qmc_analyse_event(qmc_byte_t* event , struct qmc_tickframe_result* basic_re
 }
 
 __QMC_INTERNAL__
+qmc_errno_t qmc_scan_loop(qmc_byte_t* track_buf , qmc_size_t track_size , 
+                          struct qmc_thrd_tickframe_result* basic_res , 
+                          )
+{
+    qmc_byte_t* cur_buf_pos = track_buf;
+    jmp_buf jmp_point;
+    qmc_errno_t ret = setjmp(jmp_point);
+    if(!ret)
+    {
+        while (cur_buf_pos < track_buf + track_size)
+        {
+            qmc_uint32_t delta_time = vlq_to_u32_move(&cur_buf_pos);
+            cur_tf_res_pos += delta_time;
+            qmc_analyse_event(&cur_buf_pos , basic_res , midi_meta , track_id ,  cobj_allocator);
+        }
+    }
+    else
+    {
+        return ret;
+    }
+}
+
+__QMC_INTERNAL__
+qmc_errno_t qmc_scan_section(struct qmc_midi_stream* midi_stream , qmc_byte_t* track_buf , 
+                             qmc_byte_t* local_buf , qmc_size_t track_size , 
+                             struct qmc_thrd_tickframe_result* basic_res , 
+                             union qmc_midi_meta* midi_meta , qmc_track_count_t track_id ,
+                             qmc_small_allocator* small_allocator)
+{
+    qmc_byte_t* cur_buf_pos = track_buf;
+    struct qmc_tickframe_result* cur_tf_res_pos;
+    qmc_errno_t exit_ret = QMC_OK;
+    // Fist Alloc
+    cur_tf_res_pos = qmc_small_calloc(
+        small_allocator , 
+        __QMC_RES_FIRST_ALLOC_COUNT__ * sizeof(struct qmc_tickframe_result)
+    ); 
+    if(cur_tf_res_pos)
+    {   
+        qmc_scan_loop();
+    }
+    else
+    {
+        exit_ret = QMC_OUT_OF_MEM;
+    }
+
+    qmc_auto_free_track(&midi_stream->track_allocator , track_size , local_buf , track_buf);
+    qmc_thrd_exit(exit_ret);
+}
+
+__QMC_INTERNAL__
 qmc_errno_t qmc_scan_track(struct qmc_midi_stream* midi_stream , 
-                           qmc_small_allocator* small_allocator ,
+                           qmc_small_allocator* small_allocator , 
+                           struct qmc_const_object_allocator* cobj_allocator , 
                            struct qmc_thrd_tickframe_result* basic_res , 
-                           struct qmc_midi_meta* midi_meta ,
+                           union qmc_midi_meta** midi_meta ,
                            struct qmc_working_stat* working_stat)
 {
     qmc_byte_t local_buf[__QMC_LOCAL_TRACK_BUF_MAX__];
     qmc_byte_t* track_buf;
     qmc_size_t track_size;
     qmc_flag32_t load_ret;
+    qmc_uint16_t track_id = 0;
 
     while (true)
     {
@@ -1678,7 +2008,7 @@ qmc_errno_t qmc_scan_track(struct qmc_midi_stream* midi_stream ,
                                     small_allocator , basic_res , working_stat);
 
         track_buf = local_buf;
-        load_ret = (*midi_stream->fn_load_track)(midi_stream , &track_buf , &track_size);
+        load_ret = (*midi_stream->fn_load_track)(midi_stream , &track_buf , &track_size , &track_id);
         if(load_ret)
         {
             switch (load_ret)
@@ -1695,20 +2025,23 @@ qmc_errno_t qmc_scan_track(struct qmc_midi_stream* midi_stream ,
                     break;
             }
         }
-    
+    }
         qmc_byte_t* cur_buf_pos = track_buf;
         struct qmc_tickframe_result* cur_tf_res_pos;
         qmc_errno_t exit_ret = QMC_OK;
 
         // Fist Alloc
-        cur_tf_res_pos = qmc_small_calloc(small_allocator , __QMC_RES_FIRST_ALLOC_COUNT__ * sizeof(struct qmc_tickframe_result)); 
+        cur_tf_res_pos = qmc_small_calloc(
+            small_allocator , 
+            __QMC_RES_FIRST_ALLOC_COUNT__ * sizeof(struct qmc_tickframe_result)
+        ); 
         if(cur_tf_res_pos)
-        {
+        {   
             while (cur_buf_pos < track_buf + track_size)
             {
                 qmc_uint32_t delta_time = vlq_to_u32_move(&cur_buf_pos);
                 cur_tf_res_pos += delta_time;
-                
+                qmc_analyse_event(&cur_buf_pos , basic_res , midi_meta , track_id ,  cobj_allocator);
             }
         }
         else
@@ -1717,7 +2050,8 @@ qmc_errno_t qmc_scan_track(struct qmc_midi_stream* midi_stream ,
         }
     
         qmc_auto_free_track(&midi_stream->track_allocator , track_size , local_buf , track_buf);
-    }
+        qmc_thrd_exit(exit_ret);
+
     
     
 }
